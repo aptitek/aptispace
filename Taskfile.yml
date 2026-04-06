@@ -1,0 +1,86 @@
+version: '3'
+
+tasks:
+  new:
+    desc: Create a new Quarto course repository and Cloudflare Pages project
+    cmds:
+      - |
+        eval set -- {{.CLI_ARGS}}
+        SLUG=$1
+        if [ -z "$SLUG" ]; then
+          echo "Error: Please provide a SLUG. Example: task new -- docker"
+          exit 1
+        fi
+        
+        echo "Creating directory cours/$SLUG..."
+        mkdir -p "cours/$SLUG"
+        
+        if [ -d "template" ]; then
+          echo "Copying files from template/ to cours/$SLUG..."
+          cp -a template/. "cours/$SLUG"/
+        else
+          echo "Warning: template/ directory not found. Proceeding with empty directory."
+        fi
+        
+        if [ -f "cours/$SLUG/_quarto.yml" ]; then
+          echo "Updating Cloudflare project name in _quarto.yml..."
+          sed -i "s/cloudflare-project: \"aptispace-desktop\"/cloudflare-project: \"aptispace-$SLUG\"/g" "cours/$SLUG/_quarto.yml"
+        fi
+        
+        echo "Creating GitHub remote repository aptispace-$SLUG..."
+        gh repo create "aptispace-$SLUG" --public
+        
+        echo "Initializing git in local folder cours/$SLUG, committing and pushing..."
+        cd "cours/$SLUG"
+        git init
+        git add .
+        git commit -m "chore: initial course setup for $SLUG" || echo "Nothing to commit"
+        git branch -M main
+        git remote add origin "https://github.com/aptitek/aptispace-$SLUG.git"
+        git push -u origin main
+        cd ../..
+        
+        echo "Adding new repository as a git submodule to the hub..."
+        git submodule add "https://github.com/aptitek/aptispace-$SLUG.git" "cours/$SLUG"
+        
+        echo "Creating Cloudflare Pages project aptispace-$SLUG..."
+        wrangler pages project create "aptispace-$SLUG" --production-branch main
+        
+        echo "Course $SLUG setup successfully!"
+
+  publish:
+    desc: Publish updates for all courses or a specific course
+    cmds:
+      - |
+        eval set -- {{.CLI_ARGS}}
+        SLUG=$1
+        MSG=${2:-"feat: automatically update content"}
+        
+        if [ -z "$SLUG" ]; then
+          echo "Publishing ALL submodules..."
+          git submodule foreach 'git add . && git commit -m "'"$MSG"'" || true; git push origin main || true'
+          
+          echo "Updating submodule references in the hub..."
+          git add cours/
+          git commit -m "chore(submodule): update all courses" || echo "No hub changes"
+          git push origin main
+          echo "Publish complete for all courses!"
+        else
+          echo "Publishing updates for course $SLUG..."
+          if [ ! -d "cours/$SLUG" ]; then
+            echo "Error: Directory cours/$SLUG does not exist."
+            exit 1
+          fi
+          
+          cd "cours/$SLUG"
+          git add .
+          git commit -m "$MSG" || echo "No changes in submodule"
+          git push origin main
+          cd ../..
+          
+          echo "Updating submodule reference in the hub..."
+          git add "cours/$SLUG"
+          git commit -m "chore(submodule): update $SLUG - $MSG" || echo "No changes in hub"
+          git push origin main
+          echo "Publish complete for $SLUG!"
+        fi
