@@ -18,14 +18,23 @@ tasks:
         if [ -d "template" ]; then
           echo "Copying files from template/ to cours/$SLUG..."
           cp -a template/. "cours/$SLUG"/
+          echo "Initializing .template-sync tracking..."
+          cd template && git rev-parse HEAD > "../cours/$SLUG/.template-sync" && cd ..
         else
           echo "Warning: template/ directory not found. Proceeding with empty directory."
         fi
         
         if [ -f "cours/$SLUG/_quarto.yml" ]; then
-          echo "Updating Cloudflare project name in _quarto.yml..."
-          sed -i "s/cloudflare-project: \"aptispace-desktop\"/cloudflare-project: \"aptispace-$SLUG\"/g" "cours/$SLUG/_quarto.yml"
+          echo "Updating Cloudflare project name, title and URL in _quarto.yml..."
+          # Extract title from index.qmd metadata (e.g., title: "My Course")
+          TITLE=$(grep "^title: " "cours/$SLUG/index.qmd" | head -n 1 | sed 's/title: //;s/"//g;s/'"'"'//g')
+          if [ -z "$TITLE" ]; then TITLE="$SLUG"; fi
+          
+          sed -i "s/cloudflare-project: \"aptispace-template\"/cloudflare-project: \"aptispace-$SLUG\"/g" "cours/$SLUG/_quarto.yml"
+          sed -i "s/title: \"Template\"/title: \"$TITLE\"/g" "cours/$SLUG/_quarto.yml"
+          sed -i "s|site-url: \"https://template.apti.space\"|site-url: \"https://$SLUG.apti.space\"|g" "cours/$SLUG/_quarto.yml"
         fi
+        
         
         echo "Creating GitHub remote repository aptispace-$SLUG..."
         gh repo create "aptispace-$SLUG" --public
@@ -84,3 +93,54 @@ tasks:
           git push origin main
           echo "Publish complete for $SLUG!"
         fi
+
+  sync:
+    desc: Sync recent commits from template to all submodules
+    cmds:
+      - |
+        if [ ! -d "template" ]; then
+          echo "Error: template/ directory not found."
+          exit 1
+        fi
+        
+        cd template
+        TMPL_HEAD=$(git rev-parse HEAD)
+        cd ..
+        
+        # Function to sync a specific directory
+        sync_dir() {
+          DIR=$1
+          if [ -d "$DIR" ] && [ -f "$DIR/.template-sync" ]; then
+            LAST_SYNC=$(cat "$DIR/.template-sync")
+            if [ "$LAST_SYNC" != "$TMPL_HEAD" ]; then
+              echo "Syncing $DIR from template..."
+              
+              # Generate patch from template and apply it
+              git --git-dir=template/.git --work-tree=template diff "$LAST_SYNC" "$TMPL_HEAD" | patch -p1 -N -d "$DIR" || echo "Warning: Some patches skipped or merged with conflicts. Please check for .rej files in $DIR"
+              
+              # Update the sync pointer
+              echo "$TMPL_HEAD" > "$DIR/.template-sync"
+              
+              # Commit the sync changes
+              cd "$DIR"
+              git add .
+              git commit -m "chore(sync): apply template updates" || echo "No changes to commit for $DIR."
+              cd ../..
+            else
+              echo "$DIR is already up-to-date with template."
+            fi
+          elif [ -d "$DIR" ]; then
+            echo "Initializing .template-sync in $DIR with the current template HEAD (no patch applied)."
+            echo "$TMPL_HEAD" > "$DIR/.template-sync"
+            cd "$DIR" && git add .template-sync && git commit -m "chore: init template sync tracking" || true && cd ../..
+          fi
+        }
+
+        # Sync desktop and all courses
+        sync_dir "desktop"
+        for d in cours/*; do
+          if [ -d "$d" ]; then
+            sync_dir "$d"
+          fi
+        done
+        echo "Sync process complete."
