@@ -1,0 +1,14 @@
+{
+  "userIgnoreFilters": [
+    "_extensions",
+    ".theme",
+    ".github",
+    "_site",
+    "fonts",
+    ".quarto",
+    "_quarto.yml",
+    ".gitignore",
+    "jupyter-lite.json",
+    "_*"
+  ]
+}
