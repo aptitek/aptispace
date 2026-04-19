@@ -12,45 +12,45 @@ tasks:
           exit 1
         fi
         
-        echo "Creating directory cours/$SLUG..."
-        mkdir -p "cours/$SLUG"
+        echo "Creating directory $SLUG..."
+        mkdir -p "$SLUG"
         
         if [ -d "template" ]; then
-          echo "Copying files from template/ to cours/$SLUG..."
-          cp -a template/. "cours/$SLUG"/
+          echo "Copying files from template/ to $SLUG..."
+          cp -a template/. "$SLUG"/
           echo "Initializing .template-sync tracking..."
-          cd template && git rev-parse HEAD > "../cours/$SLUG/.template-sync" && cd ..
+          cd template && git rev-parse HEAD > "../$SLUG/.template-sync" && cd ..
         else
           echo "Warning: template/ directory not found. Proceeding with empty directory."
         fi
         
-        if [ -f "cours/$SLUG/_quarto.yml" ]; then
+        if [ -f "$SLUG/_quarto.yml" ]; then
           echo "Updating Cloudflare project name, title and URL in _quarto.yml..."
           # Extract title from index.qmd metadata (e.g., title: "My Course")
-          TITLE=$(grep "^title: " "cours/$SLUG/index.qmd" | head -n 1 | sed 's/title: //;s/"//g;s/'"'"'//g')
+          TITLE=$(grep "^title: " "$SLUG/index.qmd" | head -n 1 | sed 's/title: //;s/"//g;s/'"'"'//g')
           if [ -z "$TITLE" ]; then TITLE="$SLUG"; fi
           
-          sed -i "s/cloudflare-project: \"aptispace-template\"/cloudflare-project: \"aptispace-$SLUG\"/g" "cours/$SLUG/_quarto.yml"
-          sed -i "s/title: \"Template\"/title: \"$TITLE\"/g" "cours/$SLUG/_quarto.yml"
-          sed -i "s|site-url: \"https://template.apti.space\"|site-url: \"https://$SLUG.apti.space\"|g" "cours/$SLUG/_quarto.yml"
+          sed -i "s/cloudflare-project: \"aptispace-template\"/cloudflare-project: \"aptispace-$SLUG\"/g" "$SLUG/_quarto.yml"
+          sed -i "s/title: \"Template\"/title: \"$TITLE\"/g" "$SLUG/_quarto.yml"
+          sed -i "s|site-url: \"https://template.apti.space\"|site-url: \"https://$SLUG.apti.space\"|g" "$SLUG/_quarto.yml"
         fi
         
         
         echo "Creating GitHub remote repository aptispace-$SLUG..."
         gh repo create "aptispace-$SLUG" --public
         
-        echo "Initializing git in local folder cours/$SLUG, committing and pushing..."
-        cd "cours/$SLUG"
+        echo "Initializing git in local folder $SLUG, committing and pushing..."
+        cd "$SLUG"
         git init
         git add .
         git commit -m "chore: initial course setup for $SLUG" || echo "Nothing to commit"
         git branch -M main
         git remote add origin "https://github.com/aptitek/aptispace-$SLUG.git"
         git push -u origin main
-        cd ../..
+        cd ..
         
         echo "Adding new repository as a git submodule to the hub..."
-        git submodule add "https://github.com/aptitek/aptispace-$SLUG.git" "cours/$SLUG"
+        git submodule add "https://github.com/aptitek/aptispace-$SLUG.git" "$SLUG"
         
         echo "Creating Cloudflare Pages project aptispace-$SLUG..."
         wrangler pages project create "aptispace-$SLUG" --production-branch main
@@ -70,25 +70,25 @@ tasks:
           git submodule foreach 'git add . && git commit -m "'"$MSG"'" || true; git push origin main || true'
           
           echo "Updating submodule references in the hub..."
-          git add cours/
+          git add .
           git commit -m "chore(submodule): update all courses" || echo "No hub changes"
           git push origin main
           echo "Publish complete for all courses!"
         else
           echo "Publishing updates for course $SLUG..."
-          if [ ! -d "cours/$SLUG" ]; then
-            echo "Error: Directory cours/$SLUG does not exist."
+          if [ ! -d "$SLUG" ]; then
+            echo "Error: Directory $SLUG does not exist."
             exit 1
           fi
           
-          cd "cours/$SLUG"
+          cd "$SLUG"
           git add .
           git commit -m "$MSG" || echo "No changes in submodule"
           git push origin main
-          cd ../..
+          cd ..
           
           echo "Updating submodule reference in the hub..."
-          git add "cours/$SLUG"
+          git add "$SLUG"
           git commit -m "chore(submodule): update $SLUG - $MSG" || echo "No changes in hub"
           git push origin main
           echo "Publish complete for $SLUG!"
@@ -125,21 +125,21 @@ tasks:
               cd "$DIR"
               git add .
               git commit -m "chore(sync): apply template updates" || echo "No changes to commit for $DIR."
-              cd ../..
+              cd ..
             else
               echo "$DIR is already up-to-date with template."
             fi
           elif [ -d "$DIR" ]; then
             echo "Initializing .template-sync in $DIR with the current template HEAD (no patch applied)."
             echo "$TMPL_HEAD" > "$DIR/.template-sync"
-            cd "$DIR" && git add .template-sync && git commit -m "chore: init template sync tracking" || true && cd ../..
+            cd "$DIR" && git add .template-sync && git commit -m "chore: init template sync tracking" || true && cd ..
           fi
         }
 
-        # Sync desktop and all courses
         sync_dir "desktop"
-        for d in cours/*; do
-          if [ -d "$d" ]; then
+        for d in */; do
+          d=${d%/}
+          if [ "$d" != "desktop" ] && [ "$d" != "template" ] && [ -f "$d/.template-sync" ]; then
             sync_dir "$d"
           fi
         done

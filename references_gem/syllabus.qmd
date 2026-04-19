@@ -1,0 +1,24 @@
+---
+title: "Syllabus : [NOM_DU_MODULE]"
+---
+
+# 📑 Plan de Cours
+## 1. [Titre Chapitre 1]
+- [Notion A]
+- [Notion B]
+- **Activité :** [Type d'activité ludique ou TP]
+
+## 2. [Titre Chapitre 2]
+...
+
+# 🎓 Modalités d'Évaluation
+| Évaluation | Type | Poids | Format |
+| :--- | :--- | :--- | :--- |
+| **Note 1** | [Ex: Prompt Battle / Quiz] | 20% | Direct / Peer-review |
+| **Note 2** | [Ex: Prototype Flash] | 30% | Notebook (.ipynb) |
+| **Note 3** | [Ex: Projet Fil Rouge] | 50% | Dépôt GitHub + README |
+
+## Exigences de Rendu
+- **Transparence IA :** Section obligatoire sur la méthodologie et la critique des outils.
+- **Preuves :** Screenshots et logs d'exécution obligatoires.
+- **Sécurité :** Zéro tolérance pour les clés d'API committées.

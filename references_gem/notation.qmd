@@ -1,0 +1,21 @@
+---
+title: "Grille d'Évaluation : [NOM_DU_PROJET]"
+---
+
+# 📊 Barème
+### 1. Conformité (4 pts)
+- [ ] Présence des noms dans le README (1 pt)
+- [ ] Absence de clés API (2 pts)
+- [ ] .gitignore présent (1 pt)
+
+### 2. Technique (10 pts)
+- [ ] Architecture [MVC/SOLID/Multi-agents] (6 pts)
+- [ ] Exécution sans erreur (4 pts)
+
+### 3. Analyse & IA (6 pts)
+- [ ] Rapport de méthodologie (3 pts)
+- [ ] Critique de l'utilisation de l'IA (3 pts)
+
+# 🤖 Instructions Correcteur
+- Sanctionner de -5 pts toute fuite de clé API.
+- Vérifier les outputs des cellules Jupyter.

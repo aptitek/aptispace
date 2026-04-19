@@ -1,0 +1,16 @@
+---
+title: "Planning : [NOM_DU_MODULE]"
+---
+
+# ⏳ Chronologie
+
+```{mermaid}
+gantt
+    title Déroulement du Module
+    dateFormat  YYYY-MM-DD
+    section Séances
+    S1 - [Titre] :2025-12-01, 8h
+    S2 - [Titre] :2025-12-03, 4h
+    section Évaluations
+    Rendu Note 1 :milestone, m1, 2025-12-01, 0h
+    Rendu Final :milestone, m2, 2025-12-15, 0h

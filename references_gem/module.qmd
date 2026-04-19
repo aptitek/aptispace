@@ -1,0 +1,23 @@
+---
+title: "Fiche Module : [NOM_DU_MODULE]"
+subtitle: "Code Module : [YCODE]"
+author: "[VOTRE_NOM]"
+date: "[ANNEE_SCOLAIRE]"
+---
+
+# 📋 Description Générale
+[Description courte du module, de ses enjeux et de la valeur ajoutée pour l'élève.]
+
+# 🎯 Objectifs Pédagogiques
+- [ ] Objectif 1 : [Capacité à...]
+- [ ] Objectif 2 : [Maîtrise de...]
+- [ ] Objectif 3 : [Conception de...]
+
+# 🛠️ Spécificités & Moyens
+- **Public :** [Ex: Bachelor 2 Informatique]
+- **Volume Horaire :** [X] heures
+- **Moyens techniques :** [Stack technique, logiciels, accès GPU, etc.]
+- **Prérequis :** [Compétences ou modules validés précédemment.]
+
+# 💡 Concept & Métaphore
+[Explication de la métaphore pédagogique (ex: Le Théâtre de l'Arnaque) ou du thème conducteur du cours.]

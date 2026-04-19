@@ -1,0 +1,56 @@
+---
+title: "Projet : [NOM_DU_PROJET]"
+---
+
+# 🎯 Objectif Général
+[Description globale du projet, du contexte ou de la mise en situation (ex: "Vous êtes une startup..." ou "Simulateur d'arnaque"). Explication de la valeur pédagogique du TP.]
+
+::: {.danger header="CRITIQUE : Consignes Éliminatoires"}
+Avant de commencer, lisez attentivement ces règles. Le non-respect entraînera une note de 0 ou de fortes pénalités :
+1. **Identité :** Le fichier `README.md` doit IMPÉRATIVEMENT contenir les Noms et Prénoms de tous les membres du groupe.
+2. **Sécurité des Clés (Zéro Tolérance) :** AUCUNE clé d'API (OpenAI, HuggingFace, Google, etc.) ne doit être présente dans votre code ou votre historique Git. Utilisez un fichier `.env` et ajoutez-le à votre `.gitignore`.
+3. **Preuves Visuelles :** L'évaluation est automatisée. Votre notebook/code doit être intégralement exécuté avec les **sorties (outputs) visibles** ou avec les **screenshots** pertinents.
+:::
+
+---
+
+# 🏗️ 1. Architecture et Fonctionnalités Attendues
+
+[Détail des fonctionnalités à implémenter. Diviser en sous-sections logiques.]
+
+## 1.1 [Fonctionnalité / Étape 1]
+- **Objectif :** [Ce que le code doit faire]
+- **Sortie Attendue :** [Ex: Logs d'installation, résumé du modèle `model.summary()`, affichage console spécifique.]
+
+## 1.2 [Fonctionnalité / Étape 2]
+- **Objectif :** [Ce que le code doit faire]
+- **Sortie Attendue :** [Ex: Graphique d'entraînement, interaction utilisateur, etc.]
+
+---
+
+# 💻 2. Contraintes Techniques
+
+- **Format :** [Ex: Un seul fichier Notebook `.ipynb` OU un dépôt GitHub public].
+- **Librairies Autorisées :** [Liste des outils permis ou imposés, ex: TensorFlow, LangChain].
+- **Qualité du Code :** Respect des conventions de nommage, code commenté, et principes [SOLID/DRY/KISS/MVC/etc] si applicables.
+
+---
+
+# 📦 3. Livrables Attendus
+
+À la fin du temps imparti, vous devrez fournir :
+
+1. 📂 **Le Code Source / Le Notebook :**
+   - Propre, exécuté et contenant l'historique complet des outputs (logs, graphiques).
+   
+2. 📄 **Le Rapport / README.md :**
+   - **Présentation :** Noms, Prénoms, explication de l'architecture.
+   - **Preuves :** Intégrez des **captures d'écran** ou des liens vidéos montrant votre application/code en action.
+   
+3. 🤖 **Section Transparence et IA (Obligatoire) :**
+   - Détaillez votre démarche méthodologique.
+   - Listez les outils IA utilisés (ChatGPT, Copilot, Claude...) et ce pour quoi elle a été utilisée.
+
+::: {.info header="Conseil de l'investisseur"}
+Un code qui fait peu mais qui fonctionne parfaitement (sans crash) vaut mieux qu'une usine à gaz qui ne compile pas. Assurez l'essentiel en premier !
+:::
