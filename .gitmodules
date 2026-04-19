@@ -4,3 +4,6 @@
 [submodule "template"]
 	path = template
 	url = https://github.com/aptitek/aptispace-template.git
+[submodule "ia"]
+	path = ia
+	url = https://github.com/aptitek/aptispace-ia.git
