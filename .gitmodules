@@ -7,3 +7,6 @@
 [submodule "ia"]
 	path = ia
 	url = https://github.com/aptitek/aptispace-ia.git
+[submodule "datascience"]
+	path = datascience
+	url = https://github.com/aptitek/aptispace-datascience.git
