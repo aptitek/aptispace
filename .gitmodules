@@ -10,3 +10,6 @@
 [submodule "datascience"]
 	path = datascience
 	url = https://github.com/aptitek/aptispace-datascience.git
+[submodule "deeplearning"]
+	path = deeplearning
+	url = https://github.com/aptitek/aptispace-deeplearning.git
