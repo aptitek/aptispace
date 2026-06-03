@@ -2,7 +2,7 @@ version: '3'
 
 tasks:
   new:
-    desc: Create a new Quarto course repository and Cloudflare Pages project
+    desc: Create a new single-page Quarto course from the template
     cmds:
       - |
         eval set -- {{.CLI_ARGS}}
@@ -11,51 +11,249 @@ tasks:
           echo "Error: Please provide a SLUG. Example: task new -- docker"
           exit 1
         fi
-        
+
         echo "Creating directory $SLUG..."
         mkdir -p "$SLUG"
-        
+
         if [ -d "template" ]; then
           echo "Copying files from template/ to $SLUG..."
           cp -a template/. "$SLUG"/
+          rm -rf "$SLUG/.git"
           echo "Initializing .template-sync tracking..."
           cd template && git rev-parse HEAD > "../$SLUG/.template-sync" && cd ..
         else
           echo "Warning: template/ directory not found. Proceeding with empty directory."
         fi
-        
+
         if [ -f "$SLUG/_quarto.yml" ]; then
-          echo "Updating Cloudflare project name, title and URL in _quarto.yml..."
-          # Extract title from index.qmd metadata (e.g., title: "My Course")
+          echo "Patching _quarto.yml with course slug, title and URL..."
           TITLE=$(grep "^title: " "$SLUG/index.qmd" | head -n 1 | sed 's/title: //;s/"//g;s/'"'"'//g')
-          if [ -z "$TITLE" ]; then TITLE="$SLUG"; fi
-          
+          [ -z "$TITLE" ] && TITLE="$SLUG"
           sed -i "s/cloudflare-project: \"aptispace-template\"/cloudflare-project: \"aptispace-$SLUG\"/g" "$SLUG/_quarto.yml"
           sed -i "s/title: \"Template\"/title: \"$TITLE\"/g" "$SLUG/_quarto.yml"
           sed -i "s|site-url: \"https://template.apti.space\"|site-url: \"https://$SLUG.apti.space\"|g" "$SLUG/_quarto.yml"
         fi
-        
-        
+
         echo "Creating GitHub remote repository aptispace-$SLUG..."
         gh repo create "aptispace-$SLUG" --public
-        
-        echo "Initializing git in local folder $SLUG, committing and pushing..."
+
+        echo "Initializing git in $SLUG, committing and pushing..."
         cd "$SLUG"
         git init
+        NOREPLY_EMAIL="$(gh api user --jq '"\(.id)+\(.login)@users.noreply.github.com"')"
+        git config user.email "$NOREPLY_EMAIL"
         git add .
         git commit -m "chore: initial course setup for $SLUG" || echo "Nothing to commit"
         git branch -M main
         git remote add origin "https://github.com/aptitek/aptispace-$SLUG.git"
         git push -u origin main
         cd ..
-        
+
         echo "Adding new repository as a git submodule to the hub..."
         git submodule add "https://github.com/aptitek/aptispace-$SLUG.git" "$SLUG"
-        
-        echo "Creating Cloudflare Pages project aptispace-$SLUG..."
-        wrangler pages project create "aptispace-$SLUG" --production-branch main
-        
+
+        if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+          echo "Warning: CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID not set — skipping Cloudflare setup."
+        else
+          echo "Creating Cloudflare Pages project aptispace-$SLUG..."
+          CF_CREATE=$(curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\": \"aptispace-${SLUG}\", \"production_branch\": \"main\"}")
+          echo "$CF_CREATE" | grep -q '"success":true' \
+            && echo "Cloudflare Pages project created." \
+            || { echo "Warning: project creation may have failed."; echo "$CF_CREATE"; }
+
+          echo "Assigning custom domain $SLUG.apti.space..."
+          CF_DOMAIN=$(curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/aptispace-${SLUG}/domains" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\": \"${SLUG}.apti.space\"}")
+          echo "$CF_DOMAIN" | grep -q '"success":true' \
+            && echo "Custom domain ${SLUG}.apti.space assigned." \
+            || { echo "Warning: domain assignment may have failed."; echo "$CF_DOMAIN"; }
+        fi
+
         echo "Course $SLUG setup successfully!"
+
+  new-course:
+    desc: Create a new book-type Quarto course (like ia/datascience) with full scaffolding
+    cmds:
+      - |
+        eval set -- {{.CLI_ARGS}}
+        SLUG=$1
+        shift
+        TITLE="${*:-$SLUG}"
+        if [ -z "$SLUG" ]; then
+          echo "Error: Please provide a SLUG (and optional TITLE). Example: task new-course -- docker 'Docker & Containers'"
+          exit 1
+        fi
+
+        echo "Creating course directory $SLUG..."
+        mkdir -p "$SLUG"
+
+        if [ -d "template" ]; then
+          echo "Copying base from template/ to $SLUG..."
+          cp -a template/. "$SLUG"/
+          rm -rf "$SLUG/.git"
+          echo "Initializing .template-sync tracking..."
+          cd template && git rev-parse HEAD > "../$SLUG/.template-sync" && cd ..
+        else
+          echo "Warning: template/ directory not found. Proceeding with empty directory."
+        fi
+
+        echo "Creating course directory structure..."
+        mkdir -p "$SLUG/cours" "$SLUG/lab" "$SLUG/meta" "$SLUG/scratch"
+
+        echo "Scaffolding course files..."
+        printf '@misc{placeholder,\n  author = {Author, A.},\n  title  = {Title},\n  year   = {2024}\n}\n' > "$SLUG/bibliography.bib"
+        printf -- '---\nnumber-sections: false\n---\n\n# Glossaire\n\nTermes et définitions clés du cours.\n' > "$SLUG/glossaire.qmd"
+        printf -- '---\nnumber-sections: false\n---\n\n# Références\n\n::: {#refs}\n:::\n' > "$SLUG/references.qmd"
+
+        echo "Writing book-type _quarto.yml..."
+        python3 template/scripts/scaffold-quarto.py "$SLUG" $TITLE
+
+        echo "Creating GitHub remote repository aptispace-$SLUG..."
+        gh repo create "aptispace-$SLUG" --public
+
+        echo "Initializing git in $SLUG, committing and pushing..."
+        cd "$SLUG"
+        git init
+        NOREPLY_EMAIL="$(gh api user --jq '"\(.id)+\(.login)@users.noreply.github.com"')"
+        git config user.email "$NOREPLY_EMAIL"
+        git add .
+        git commit -m "chore: initial course setup for $SLUG" || echo "Nothing to commit"
+        git branch -M main
+        git remote add origin "https://github.com/aptitek/aptispace-$SLUG.git"
+        git push -u origin main
+        cd ..
+
+        echo "Adding as git submodule to the hub..."
+        git submodule add "https://github.com/aptitek/aptispace-$SLUG.git" "$SLUG"
+
+        if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+          echo "Warning: CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID not set — skipping Cloudflare setup."
+        else
+          echo "Creating Cloudflare Pages project aptispace-$SLUG..."
+          CF_CREATE=$(curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\": \"aptispace-${SLUG}\", \"production_branch\": \"main\"}")
+          echo "$CF_CREATE" | grep -q '"success":true' \
+            && echo "Cloudflare Pages project created." \
+            || { echo "Warning: project creation may have failed."; echo "$CF_CREATE"; }
+
+          echo "Assigning custom domain $SLUG.apti.space..."
+          CF_DOMAIN=$(curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/aptispace-${SLUG}/domains" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\": \"${SLUG}.apti.space\"}")
+          echo "$CF_DOMAIN" | grep -q '"success":true' \
+            && echo "Custom domain ${SLUG}.apti.space assigned." \
+            || { echo "Warning: domain assignment may have failed."; echo "$CF_DOMAIN"; }
+        fi
+
+        echo "Course $SLUG created successfully! Site will be at https://$SLUG.apti.space"
+
+  upgrade:
+    desc: Sync framework files from template to a course (task upgrade -- deeplearning)
+    cmds:
+      - |
+        eval set -- {{.CLI_ARGS}}
+        SLUG=$1
+        if [ -z "$SLUG" ]; then
+          echo "Usage: task upgrade -- <course-slug>"
+          exit 1
+        fi
+        if [ ! -d "$SLUG" ]; then
+          echo "Error: $SLUG/ not found."
+          exit 1
+        fi
+        if [ ! -d "template" ]; then
+          echo "Error: template/ not found."
+          exit 1
+        fi
+
+        echo "Upgrading $SLUG from template..."
+
+        # SCSS theme — preserve course-specific overrides (e.g. book_custom.css)
+        mkdir -p "$SLUG/.theme"
+        rsync -a --delete --exclude 'book_custom.css' template/.theme/ "$SLUG/.theme/"
+
+        # JS assets
+        mkdir -p "$SLUG/assets/js"
+        rsync -a --delete template/assets/js/ "$SLUG/assets/js/"
+
+        # Standalone asset files
+        for f in assets/viewer.html assets/fix_links.html; do
+          [ -f "template/$f" ] && cp "template/$f" "$SLUG/$f" && echo "  copied $f"
+        done
+
+        # Infrastructure directories
+        for d in _extensions scripts fonts; do
+          [ -d "template/$d" ] && { mkdir -p "$SLUG/$d"; rsync -a --delete "template/$d/" "$SLUG/$d/"; }
+        done
+
+        # Taskfile — self-updating (ships the upgrade task to the course)
+        cp template/Taskfile.yml "$SLUG/Taskfile.yml"
+
+        # Record synced commit
+        git -C template rev-parse HEAD > "$SLUG/.template-sync"
+
+        echo ""
+        echo "✓ $SLUG upgraded to $(cat $SLUG/.template-sync | cut -c1-8)"
+        echo "  Review: cd $SLUG && git diff  |  Deploy: task publish -- $SLUG"
+
+  upgrade-template:
+    desc: Sync framework files from a course back to template (task upgrade-template -- deeplearning)
+    cmds:
+      - |
+        eval set -- {{.CLI_ARGS}}
+        SLUG=$1
+        if [ -z "$SLUG" ]; then
+          echo "Usage: task upgrade-template -- <course-slug>"
+          exit 1
+        fi
+        if [ ! -d "$SLUG" ]; then
+          echo "Error: $SLUG/ not found."
+          exit 1
+        fi
+        if [ ! -d "template" ]; then
+          echo "Error: template/ not found."
+          exit 1
+        fi
+
+        echo "Upgrading template from $SLUG..."
+
+        # SCSS theme — preserve course-specific overrides (exclude book_custom.css)
+        mkdir -p template/.theme
+        rsync -a --delete --exclude 'book_custom.css' "$SLUG/.theme/" template/.theme/
+
+        # JS assets
+        mkdir -p template/assets/js
+        rsync -a --delete "$SLUG/assets/js/" template/assets/js/
+
+        # Standalone asset files
+        for f in assets/viewer.html assets/fix_links.html; do
+          [ -f "$SLUG/$f" ] && cp "$SLUG/$f" "template/$f" && echo "  copied $f"
+        done
+
+        # Infrastructure directories
+        for d in _extensions scripts fonts; do
+          [ -d "$SLUG/$d" ] && { mkdir -p "template/$d"; rsync -a --delete "$SLUG/$d/" "template/$d/"; }
+        done
+
+        # Taskfile — self-updating (saves course's Taskfile.yml back to template)
+        cp "$SLUG/Taskfile.yml" template/Taskfile.yml
+
+        echo ""
+        echo "✓ template upgraded from $SLUG"
+        echo "  Review: cd template && git diff"
+        echo "  To make changes global: cd template && git commit -am 'chore: upgrade template from $SLUG' && git push"
 
   publish:
     desc: Publish updates for all courses or a specific course
@@ -64,11 +262,10 @@ tasks:
         eval set -- {{.CLI_ARGS}}
         SLUG=$1
         MSG=${2:-"feat: automatically update content"}
-        
+
         if [ -z "$SLUG" ]; then
           echo "Publishing ALL submodules..."
           git submodule foreach 'git add . && git commit -m "'"$MSG"'" || true; git push origin main || true'
-          
           echo "Updating submodule references in the hub..."
           git add .
           git commit -m "chore(submodule): update all courses" || echo "No hub changes"
@@ -80,13 +277,11 @@ tasks:
             echo "Error: Directory $SLUG does not exist."
             exit 1
           fi
-          
           cd "$SLUG"
           git add .
           git commit -m "$MSG" || echo "No changes in submodule"
           git push origin main
           cd ..
-          
           echo "Updating submodule reference in the hub..."
           git add "$SLUG"
           git commit -m "chore(submodule): update $SLUG - $MSG" || echo "No changes in hub"
@@ -95,33 +290,26 @@ tasks:
         fi
 
   sync:
-    desc: Sync recent commits from template to all submodules
+    desc: Sync recent commits from template to all submodules (patch-based)
     cmds:
       - |
         if [ ! -d "template" ]; then
           echo "Error: template/ directory not found."
           exit 1
         fi
-        
+
         cd template
         TMPL_HEAD=$(git rev-parse HEAD)
         cd ..
-        
-        # Function to sync a specific directory
+
         sync_dir() {
           DIR=$1
           if [ -d "$DIR" ] && [ -f "$DIR/.template-sync" ]; then
             LAST_SYNC=$(cat "$DIR/.template-sync")
             if [ "$LAST_SYNC" != "$TMPL_HEAD" ]; then
               echo "Syncing $DIR from template..."
-              
-              # Generate patch from template and apply it
-              git --git-dir=template/.git --work-tree=template diff "$LAST_SYNC" "$TMPL_HEAD" | patch -p1 -N -d "$DIR" || echo "Warning: Some patches skipped or merged with conflicts. Please check for .rej files in $DIR"
-              
-              # Update the sync pointer
+              git --git-dir=template/.git --work-tree=template diff "$LAST_SYNC" "$TMPL_HEAD" | patch -p1 -N -d "$DIR" || echo "Warning: Some patches skipped. Check for .rej files in $DIR"
               echo "$TMPL_HEAD" > "$DIR/.template-sync"
-              
-              # Commit the sync changes
               cd "$DIR"
               git add .
               git commit -m "chore(sync): apply template updates" || echo "No changes to commit for $DIR."
@@ -130,7 +318,7 @@ tasks:
               echo "$DIR is already up-to-date with template."
             fi
           elif [ -d "$DIR" ]; then
-            echo "Initializing .template-sync in $DIR with the current template HEAD (no patch applied)."
+            echo "Initializing .template-sync in $DIR with current template HEAD."
             echo "$TMPL_HEAD" > "$DIR/.template-sync"
             cd "$DIR" && git add .template-sync && git commit -m "chore: init template sync tracking" || true && cd ..
           fi
